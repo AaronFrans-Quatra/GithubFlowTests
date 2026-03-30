@@ -1,0 +1,24 @@
+name: Check pull request source branch
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || inputs.pr_number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check branches
+        run: |
+          if [ ${{ github.head_ref }} != "18.0-release" ] && [ ${{ github.base_ref }} == "13.0" ]; then
+            echo "Merge requests to main branch are only allowed from dev branch."
+            exit 1
+          fi
