@@ -1,11 +1,10 @@
 name: Check pull request source branch
 
 on:
-  pull_request_target:
+  pull_request:
     types:
       - opened
       - reopened
-      - synchronize
       - edited
 
 concurrency:
@@ -13,12 +12,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  tests:
+  check-pr-source-branch:
     runs-on: ubuntu-22.04
     steps:
       - name: Check branches
         run: |
-          if [ ${{ github.head_ref }} != "18.0-release" ] && [ ${{ github.base_ref }} == "13.0" ]; then
-            echo "Merge requests to main branch are only allowed from dev branch."
-            exit 1
+          head="${{ github.head_ref }}"
+          base="${{ github.base_ref }}"
+          if [ "$base" == "13.0" ]; then
+            if [ "$head" != "18.0-release" ] && [[ "$head" != *-hotfix ]]; then
+              echo "Merge requests to the 13.0 branch are only allowed from the 18.0-release branch or a hotfix branch (e.g. fix-something-hotfix)."
+              exit 1
+            fi
           fi
