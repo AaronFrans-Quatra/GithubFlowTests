@@ -1,0 +1,57 @@
+name: Auto-create draft release PR
+
+on:
+  push:
+    branches:
+      - 18.0-release
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  create-draft-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Calculate next Sunday
+        id: sunday
+        run: |
+          day=$(date -u +%w)   # 0=Sun … 6=Sat
+          if [ "$day" -eq 0 ]; then
+            offset=0
+          else
+            offset=$((7 - day))
+          fi
+          sunday=$(date -u -d "+${offset} days" +%Y-%m-%d)
+          echo "date=$sunday" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft PR if none exists for this Sunday
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: "Release ${{ steps.sunday.outputs.date }}"
+          REPO: ${{ github.repository }}
+        run: |
+          existing=$(gh pr list \
+            --repo "$REPO" \
+            --head 18.0-release \
+            --base 13.0 \
+            --state open \
+            --search "$TITLE" \
+            --json title \
+            --jq "[.[] | select(.title == \"$TITLE\")] | length")
+
+          if [ "$existing" -gt 0 ]; then
+            echo "Draft PR '$TITLE' already exists — skipping."
+            exit 0
+          fi
+
+          gh pr create \
+            --repo "$REPO" \
+            --head 18.0-release \
+            --base 13.0 \
+            --title "$TITLE" \
+            --body "Scheduled release for **${{ steps.sunday.outputs.date }}**. This PR will be merged during the Sunday merge window." \
+            --draft
+          echo "Draft PR '$TITLE' created."
