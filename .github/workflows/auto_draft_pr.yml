@@ -11,8 +11,9 @@ concurrency:
 
 jobs:
   create-draft-pr:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
+      contents: read
       pull-requests: write
     steps:
       - name: Calculate next Sunday
@@ -38,12 +39,11 @@ jobs:
             --head 18.0-release \
             --base 13.0 \
             --state open \
-            --search "$TITLE" \
-            --json title \
-            --jq "[.[] | select(.title == \"$TITLE\")] | length")
+            --json number \
+            --jq 'length')
 
           if [ "$existing" -gt 0 ]; then
-            echo "Draft PR '$TITLE' already exists — skipping."
+            echo "Open release PR already exists — skipping."
             exit 0
           fi
 
@@ -52,6 +52,6 @@ jobs:
             --head 18.0-release \
             --base 13.0 \
             --title "$TITLE" \
-            --body "Scheduled release for **${{ steps.sunday.outputs.date }}**. This PR will be merged during the Sunday merge window." \
+            --body "" \
             --draft
           echo "Draft PR '$TITLE' created."
